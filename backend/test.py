@@ -36,7 +36,7 @@ def test_pipeline(filename):
     if greenpaper_response.status_code != 200:
         print(f"Greenpaper failed: {greenpaper_response.text}")
         return
-    greenpaper_output = greenpaper_response.text
+    greenpaper_output = greenpaper_response.json()
     print("Greenpaper Response:", greenpaper_output)
     print("\n---\n")
 
@@ -48,7 +48,7 @@ def test_pipeline(filename):
     if mpemail_response.status_code != 200:
         print(f"MP Email failed: {mpemail_response.text}")
         return
-    mp_output = mpemail_response.text
+    mp_output = mpemail_response.json()
     print("MP Email Response:", mp_output)
 
 if __name__ == "__main__":

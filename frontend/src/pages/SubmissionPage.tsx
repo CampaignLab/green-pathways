@@ -82,23 +82,25 @@ const SubmissionPage: React.FC = () => {
         </p>
       </div>
 
+      { submission.mp?.body && submission.mp.subject && (
       <SummaryCard
         title="Your Email to your MP"
         description="This is an email you can send to your MP"
-        summary={submission.email}
+        summary={submission.mp.body}
         buttonText="Write your MP"
-        emailSubject="Cuts to PIP"
+        emailSubject={submission.mp.subject}
         emailUrl={submission.mpEmailAddress}
-      />
+      />)}
 
+      { submission.greenpaper?.body && submission.greenpaper.subject && (
       <SummaryCard
         title="Your Greenpaper Response"
         description="This is your response formatted for submission to the government consultation"
-        summary={submission.greenpaper}
+        summary={submission.greenpaper.body}
         buttonText="Email Response to the Consultation"
         emailUrl="consultation.pathwaystowork@dwp.gov.uk"
-        emailSubject="Consultation Response: Reforming Benefits and Support to Get Britain Working"
-      />
+        emailSubject={submission.greenpaper.subject}
+      />)}
 
       <Card>
         <CardHeader>
@@ -156,6 +158,8 @@ const SummaryCard = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
+  const mailto = `mailto:${emailUrl}?subject=${emailSubject}`;
+
   if (!summary) {
     return <div />;
   }
@@ -204,7 +208,7 @@ const SummaryCard = ({
         <Button
           variant="primary"
           icon={<Send className="h-5 w-5" />}
-          onClick={() => window.open(emailUrl, "_blank")}
+          onClick={() => window.open(mailto, "_blank")}
         >
           {buttonText}
         </Button>

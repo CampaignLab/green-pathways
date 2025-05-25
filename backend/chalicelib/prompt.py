@@ -68,8 +68,8 @@ As the Advocate your responsibility is to abridge what the Speaker has said and 
 </contents>
 <formatting>
 Your output should be formatted as JSON, with two keys:
-"Subject:" followed by a concise, specific subject line that reflects the key concerns in the message
-"Body": the body of the email, written in the first person as if from the speaker. End with the speaker's name as the signature.
+"subject" followed by a concise, specific subject line that reflects the key concerns in the message
+"body": the body of the email, written in the first person as if from the speaker. End with the speaker's name as the signature.
 </formatting>
 <notes>
 Threats and severe criminal action which are suggestive or direct need to be obscured from the response as this would be flagged and puts the speaker who was just trying to express how the felt, it should not be included.
@@ -107,8 +107,8 @@ Make sure it does not read like an A.I. has written it and make sure every contr
 </instructions>
 <formatting>
 Your output should be formatted as JSON, with two keys:
-"Subject:" followed by a concise, specific subject line that reflects the key concerns in the message
-"Body": the body of the email, written in the first person as if from the speaker. End with the speaker's name and postcode as the signature.
+"subject" followed by a concise, specific subject line that reflects the key concerns in the message
+"body": the body of the email, written in the first person as if from the speaker. End with the speaker's name and postcode as the signature.
 </formatting>
 <example>
 This is a good example:

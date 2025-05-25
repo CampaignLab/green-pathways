@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Loader2, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "../components/ui/Card";
-import { AudioSubmission, ProcessingStep, processingSteps } from "../types";
+import {AudioSubmission, Email, ProcessingStep, processingSteps} from "../types";
 import Button from "../components/ui/Button";
 
 const backendUrl =
@@ -51,10 +51,10 @@ const ProcessingPage: React.FC = () => {
     return response.text();
   }, [])
 
-  const writeSummary = useCallback(async (transcript: string, path: string) => {
+  const writeSummary = useCallback(async (body: string, path: string) => {
     const response = await fetch(`${backendUrl}/${path}`, {
       method: "POST",
-      body: JSON.stringify({ transcript }),
+      body,
       headers: {
         "Content-Type": "application/json",
       },
@@ -62,7 +62,7 @@ const ProcessingPage: React.FC = () => {
     if (!response.ok) {
       throw new Error(`Transcription failed: ${response.statusText}`);
     }
-    const data = await response.text();
+    const data = await response.json();
     return data;
   }, []);
 
@@ -112,12 +112,16 @@ const ProcessingPage: React.FC = () => {
 
       // Step 2: Prepare submissions
       setCurrentStep("preparing");
+      const greenpaperBody = JSON.stringify({ transcript, name: sub.name })
+      const mpEmailBody = JSON.stringify({ transcript, name: sub.name, mp_name: sub.mpName, postcode: sub.postcode })
       const [greenpaper, mpemail] = await Promise.all([
-        writeSummary(transcript, "greenpaper"),
-        writeSummary(transcript, "mpemail"),
+        writeSummary(greenpaperBody, "greenpaper"),
+        writeSummary(mpEmailBody, "mpemail"),
       ]);
-      sub.greenpaper = greenpaper.split("\n").slice(1).join("\n");
-      sub.email = mpemail;
+      console.log("greenpaper", greenpaper);
+      console.log("mpemail", mpemail);
+      sub.greenpaper = greenpaper as Email;
+      sub.mp = mpemail as Email;
       updateSubmission(sub);
 
       // Processing complete

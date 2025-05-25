@@ -3,18 +3,24 @@ export const processingSteps = ['uploading', 'transcribing', 'preparing', 'compl
 
 export type ProcessingStep = typeof processingSteps[number] | "error";
 
+export interface Email {
+  subject: string;
+  body: string;
+}
+
 export interface AudioSubmission {
   id: string;
   contentType: string;
   status?: ProcessingStep;
   recording?: Blob;
-  transcript?: string;
-  greenpaper?: string;
-  email?: string;
   createdAt?: Date;
+  transcript?: string;
   name?: string;
   postcode?: string;
+  mpName?: string;
   mpEmailAddress?: string;
+  greenpaper?: Email;
+  mp?: Email;
 }
 
 export interface AudioRecorderProps {

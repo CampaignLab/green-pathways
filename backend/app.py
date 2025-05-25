@@ -9,6 +9,8 @@ import logging
 import requests
 import csv
 from jinja2 import Template
+import json
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -150,7 +152,21 @@ def greenpaper():
 @app.route("/mpemail", methods=["POST"], cors=True)
 def mpemail():
     return apply_prompt_to_transcript(MPEMAIL_TEMPLATE)
-        
+
+def extract_json_from_response(response_text):
+    # Try to find JSON in markdown code blocks first
+    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+    if json_match:
+        return json.loads(json_match.group(1))
+
+    # If no code blocks, try to find JSON directly
+    json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+    if json_match:
+        return json.loads(json_match.group(0))
+
+    # If all else fails, try parsing the whole thing
+    return json.loads(response_text)
+
 def apply_prompt_to_transcript(template):
     try:
         request_body = app.current_request.json_body
@@ -179,7 +195,20 @@ def apply_prompt_to_transcript(template):
                 },
             ]
         )
-        return response.content[0].text.strip()
+
+        response_text = response.content[0].text.strip()
+
+        try:
+            json_data = extract_json_from_response(response_text)
+            logging.info(f"JSON: {json_data}")
+            return Response(
+                body=json_data,
+                status_code=200,
+                headers={"Content-Type": "application/json"}
+            )
+        except json.JSONDecodeError:
+            logging.info(f"Text: {response_text}")
+            return response_text
     except Exception as e:
         logging.error(e)
         return Response(
