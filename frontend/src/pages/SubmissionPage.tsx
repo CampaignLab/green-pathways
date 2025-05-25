@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, {useState, useEffect, useMemo} from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   Copy,
@@ -158,6 +158,9 @@ const SummaryCard = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
+  const copyButtonVariant = useMemo(() => copied ? 'outline' : 'primary', [copied]);
+  const emailButtonVariant = useMemo(() => copied ? 'primary' : 'outline', [copied]);
+
   const mailto = `mailto:${emailUrl}?subject=${emailSubject}`;
 
   if (!summary) {
@@ -189,10 +192,14 @@ const SummaryCard = ({
         <div className="bg-slate-50 p-4 rounded-md border border-slate-200 whitespace-pre-line">
           {summary}
         </div>
+        <div className="text-sm text-slate-600 mt-4">
+          Click the button below to copy the summary to your clipboard.
+          Then click the next button to create an email, and paste the message into the email, and send it!
+        </div>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-3">
         <Button
-          variant="outline"
+          variant={copyButtonVariant}
           onClick={copyToClipboard}
           icon={
             copied ? (
@@ -206,7 +213,7 @@ const SummaryCard = ({
         </Button>
 
         <Button
-          variant="primary"
+          variant={emailButtonVariant}
           icon={<Send className="h-5 w-5" />}
           onClick={() => window.open(mailto, "_blank")}
         >

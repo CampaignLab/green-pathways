@@ -209,7 +209,6 @@ def apply_prompt_to_transcript(template):
 
         try:
             json_data = extract_json_from_response(response_text)
-            logging.info(f"JSON: {json_data}")
             return Response(
                 body=json_data,
                 status_code=200,
