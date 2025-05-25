@@ -14,7 +14,7 @@ def test_pipeline(filename):
     if response.status_code != 200:
         print(f"Email failed: {response.text}")
         return
-    print("Email: ", response.text, "\n---\n")
+    print("Email: ", response.json(), "\n---\n")
 
     # 1. First, transcribe the audio
     with open(filename, "rb") as audio_file:

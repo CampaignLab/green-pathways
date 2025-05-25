@@ -37,9 +37,10 @@ with open('chalicelib/mpemails.csv', 'r') as csvfile:
     for row in reader:
         constituency = row.get('Constituency', '').strip()
         email = row.get('Email', '').strip()
+        name = row.get('Name', '').strip()
 
         if constituency and email:
-            mp_dict[constituency] = email
+            mp_dict[constituency] = { "email": email, "name": name }
 
 logger.info(f"Loaded {len(mp_dict)} MP records")
 
@@ -78,7 +79,8 @@ def email():
             )
         
         constituency = constituency.strip()
-        mp_email = mp_dict.get(constituency)
+        mp_email = mp_dict.get(constituency).get("email")
+        mp_name = mp_dict.get(constituency).get("name")
         
         if not mp_email:
             return Response(
@@ -87,7 +89,14 @@ def email():
                 headers={"Content-Type": "application/json"}
             )
         
-        return mp_email
+        return Response(
+            body={
+                "email": mp_email,
+                "name": mp_name
+            },
+            status_code=200,
+            headers={"Content-Type": "application/json"}
+        )
         
     except Exception as e:
         logging.error(e)

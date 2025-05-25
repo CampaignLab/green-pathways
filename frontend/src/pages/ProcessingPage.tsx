@@ -48,7 +48,7 @@ const ProcessingPage: React.FC = () => {
     if (!response.ok) {
       throw new Error(`Email lookup failed: ${response.statusText}`);
     }
-    return response.text();
+    return response.json();
   }, [])
 
   const writeSummary = useCallback(async (body: string, path: string) => {
@@ -101,12 +101,13 @@ const ProcessingPage: React.FC = () => {
       // Step 1: Transcribe audio
       setCurrentStep("transcribing");
       setProgress(10);
-      const [transcript, emailAddress] = await Promise.all([transcribeAudio(
+      const [transcript, mpData] = await Promise.all([transcribeAudio(
         sub.recording as Blob,
         sub.contentType
       ), findEmail(sub.postcode)]);
       sub.transcript = transcript;
-      sub.mpEmailAddress = emailAddress;
+      sub.mpName = mpData.name;
+      sub.mpEmailAddress = mpData.email;
       updateSubmission(sub);
       setProgress(30);
 
