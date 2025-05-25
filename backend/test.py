@@ -31,7 +31,7 @@ def test_pipeline(filename):
     # 2. Get greenpaper response
     greenpaper_response = requests.post(
         f'{BASE_URL}/greenpaper',
-        json={'transcript': transcript}
+        json={'transcript': transcript, "name": "John Smith"}
     )
     if greenpaper_response.status_code != 200:
         print(f"Greenpaper failed: {greenpaper_response.text}")
@@ -43,7 +43,7 @@ def test_pipeline(filename):
     # 3. Get MP email response
     mpemail_response = requests.post(
         f'{BASE_URL}/mpemail',
-        json={'transcript': transcript}
+        json={'transcript': transcript, "name": "John Smith", "mp_name": "Mr. Jones", "postcode": "CR0 7DJ"}
     )
     if mpemail_response.status_code != 200:
         print(f"MP Email failed: {mpemail_response.text}")

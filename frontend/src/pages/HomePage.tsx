@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { Mic, Upload, HelpCircle } from 'lucide-react';
@@ -11,9 +11,15 @@ import { AudioSubmission } from '../types';
 
 const HomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'record' | 'upload' | 'text'>('record');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [postcode, setPostcode] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    sessionStorage.setItem("user_name", name);
+    sessionStorage.setItem("user_postcode", postcode);
+  }, [name, postcode]);
 
   const uploadToBackend = async (audioBlob: Blob, contentType: string) => {
     const submissionId = uuidv4();
@@ -32,7 +38,6 @@ const HomePage: React.FC = () => {
   };
   
   const handleRecordingComplete = async (recording: Blob) => {
-    setIsSubmitting(true);
     setError(null);
     
     try {
@@ -44,7 +49,6 @@ const HomePage: React.FC = () => {
     } catch (error) {
       console.error('Error processing recording:', error);
       setError('Failed to upload recording. Please try again.');
-      setIsSubmitting(false);
     }
   };
 
@@ -62,9 +66,8 @@ const extensionToContentType = (extension: string) => {
 };
   
   const handleFileUpload = async (file: File) => {
-    setIsSubmitting(true);
     setError(null);
-    
+
     try {
       const pieces = file.name.split(".");
       const extension = pieces[pieces.length - 1];
@@ -78,7 +81,6 @@ const extensionToContentType = (extension: string) => {
     } catch (error) {
       console.error('Error processing file upload:', error);
       setError('Failed to upload file. Please try again.');
-      setIsSubmitting(false);
     }
   };
 
@@ -105,6 +107,42 @@ const extensionToContentType = (extension: string) => {
       </section>
 
       {/* Submission Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Information about you</CardTitle>
+          <CardDescription>We won't store your personal information.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-1">
+              <label htmlFor="name" className="block text-sm font-medium text-slate-700">
+                Your Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-1">
+              <label htmlFor="postcode" className="block text-sm font-medium text-slate-700">
+                Your Postcode
+              </label>
+              <input
+                type="text"
+                id="postcode"
+                name="postcode"
+                placeholder="e.g. SW1A 1AA"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => setPostcode(e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>How would you like to contribute?</CardTitle>

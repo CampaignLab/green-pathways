@@ -10,17 +10,15 @@ export interface AudioSubmission {
   recording?: Blob;
   transcript?: string;
   greenpaper?: string;
-  emotionalAnalysis?: string;
   email?: string;
   createdAt?: Date;
+  name?: string;
+  postcode?: string;
+  mpEmailAddress?: string;
 }
 
 export interface AudioRecorderProps {
   onRecordingComplete: (recording: Blob) => void;
-}
-
-export interface AudioUploaderProps {
-  onFileUpload: (file: File) => void;
 }
 
 export interface EmotionalAnalysisResult {

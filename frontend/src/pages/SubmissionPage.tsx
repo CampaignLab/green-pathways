@@ -3,7 +3,6 @@ import { useParams, Link } from "react-router-dom";
 import {
   Copy,
   CheckCheck,
-  Download,
   Send,
   FileText,
   AlertCircle,
@@ -23,7 +22,6 @@ const SubmissionPage: React.FC = () => {
   const { submissionId } = useParams<{ submissionId: string }>();
   const [submission, setSubmission] = useState<AudioSubmission | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [emotion, setEmotion] = useState<string | null>(null);
 
   useEffect(() => {
     // Retrieve the submission from sessionStorage
@@ -38,11 +36,6 @@ const SubmissionPage: React.FC = () => {
     try {
       const parsedSubmission = JSON.parse(storedSubmission) as AudioSubmission;
       setSubmission(parsedSubmission);
-
-      // Parse the emotional analysis
-      if (parsedSubmission.emotionalAnalysis) {
-        setEmotion(parsedSubmission.emotionalAnalysis);
-      }
     } catch (err) {
       console.error("Error loading submission:", err);
       setError("Error loading your submission. Please try recording again.");
@@ -79,36 +72,6 @@ const SubmissionPage: React.FC = () => {
     );
   }
 
-  const __getEmotionColor = (emotionType: string | undefined) => {
-    switch (emotionType) {
-      case "anxious":
-        return "text-purple-600";
-      case "angry":
-        return "text-red-600";
-      case "concerned":
-        return "text-amber-600";
-      case "hopeful":
-        return "text-green-600";
-      default:
-        return "text-blue-600";
-    }
-  };
-
-  const __getEmotionBgColor = (emotionType: string | undefined) => {
-    switch (emotionType) {
-      case "anxious":
-        return "bg-purple-50 border-purple-100";
-      case "angry":
-        return "bg-red-50 border-red-100";
-      case "concerned":
-        return "bg-amber-50 border-amber-100";
-      case "hopeful":
-        return "bg-green-50 border-green-100";
-      default:
-        return "bg-blue-50 border-blue-100";
-    }
-  };
-
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="space-y-4">
@@ -119,31 +82,22 @@ const SubmissionPage: React.FC = () => {
         </p>
       </div>
 
-      {emotion && (
-        <Card className="border">
-          <CardContent className="p-6">
-            <h2 className={`text-xl font-semibold mb-2`}>Emotional Analysis</h2>
-            <p className="text-slate-700">{emotion}</p>
-          </CardContent>
-        </Card>
-      )}
+      <SummaryCard
+        title="Your Email to your MP"
+        description="This is an email you can send to your MP"
+        summary={submission.email}
+        buttonText="Write your MP"
+        emailSubject="Cuts to PIP"
+        emailUrl={submission.mpEmailAddress}
+      />
 
       <SummaryCard
         title="Your Greenpaper Response"
         description="This is your response formatted for submission to the government consultation"
         summary={submission.greenpaper}
-        downloadFilename="pathways-to-work.txt"
-        buttonText="Go to Official Consultation"
-        buttonUrl="https://www.gov.uk/government/consultations/pathways-to-work-health-and-disability-green-paper/responding-to-this-consultation"
-      />
-
-      <SummaryCard
-        title="Your Email to your MP"
-        description="This is an email you can send to your MP"
-        summary={submission.email}
-        downloadFilename="email-to-mp.txt"
-        buttonText="Write your MP"
-        buttonUrl="https://www.writetothem.com/?a=westminstermp"
+        buttonText="Email Response to the Consultation"
+        emailUrl="consultation.pathwaystowork@dwp.gov.uk"
+        emailSubject="Consultation Response: Reforming Benefits and Support to Get Britain Working"
       />
 
       <Card>
@@ -172,7 +126,7 @@ const SubmissionPage: React.FC = () => {
             </p>
           </div>
         </div>
-        <Link to="/record">
+        <Link to="/">
           <Button
             variant="outline"
             className="border-blue-300 text-blue-700 hover:bg-blue-100"
@@ -189,22 +143,23 @@ const SummaryCard = ({
   title,
   description,
   summary,
-  downloadFilename,
   buttonText,
-  buttonUrl,
+  emailSubject,
+  emailUrl,
 }: {
   title: string;
   description: string;
   summary?: string;
-  downloadFilename: string;
   buttonText: string;
-  buttonUrl: string;
+  emailSubject: string;
+  emailUrl?: string;
 }) => {
+  const [copied, setCopied] = useState(false);
+
   if (!summary) {
     return <div />;
   }
 
-  const [copied, setCopied] = useState(false);
 
   const copyToClipboard = async () => {
     try {
@@ -218,20 +173,6 @@ const SummaryCard = ({
     } catch (err) {
       console.error("Failed to copy text:", err);
     }
-  };
-
-  const downloadAsText = () => {
-    const blob = new Blob([summary], {
-      type: "text/plain",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = downloadFilename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -261,17 +202,9 @@ const SummaryCard = ({
         </Button>
 
         <Button
-          variant="outline"
-          onClick={downloadAsText}
-          icon={<Download className="h-5 w-5" />}
-        >
-          Download as Text
-        </Button>
-
-        <Button
           variant="primary"
           icon={<Send className="h-5 w-5" />}
-          onClick={() => window.open(buttonUrl, "_blank")}
+          onClick={() => window.open(emailUrl, "_blank")}
         >
           {buttonText}
         </Button>

@@ -8,6 +8,7 @@ import uuid
 import logging
 import requests
 import csv
+from jinja2 import Template
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,15 +32,7 @@ SUPPORTED_CONTENT_TYPES = ["audio/mp4", "audio/mpeg", "audio/wav", "audio/ogg", 
 mp_dict = {}
 with open('chalicelib/mpemails.csv', 'r') as csvfile:
     reader = csv.DictReader(csvfile)
-    # Print header names for debugging
-    field_names = reader.fieldnames
-    logger.info(f"CSV columns: {field_names}")
-
     for row in reader:
-        # Print a sample row for debugging
-        if len(mp_dict) == 0:
-            logger.info(f"Sample row: {row}")
-
         constituency = row.get('Constituency', '').strip()
         email = row.get('Email', '').strip()
 
@@ -147,25 +140,34 @@ def transcribe():
         except Exception as e:
             logging.info(f"Warning: Failed to clean up temporary file {temp_file_path}: {str(e)}")
 
+GREENPAPER_TEMPLATE = Template(GREENPAPER_PROMPT)
+MPEMAIL_TEMPLATE = Template(MP_PROMPT)
+
 @app.route("/greenpaper", methods=["POST"], cors=True)
 def greenpaper():
-   return apply_prompt_to_transcript(GREENPAPER_PROMPT)
+   return apply_prompt_to_transcript(GREENPAPER_TEMPLATE)
 
 @app.route("/mpemail", methods=["POST"], cors=True)
 def mpemail():
-    return apply_prompt_to_transcript(MP_PROMPT)
+    return apply_prompt_to_transcript(MPEMAIL_TEMPLATE)
         
-def apply_prompt_to_transcript(prompt):
+def apply_prompt_to_transcript(template):
     try:
-        # Get the transcript from the request body
-        transcript = app.current_request.json_body.get('transcript')
-        if not transcript:
+        request_body = app.current_request.json_body
+        transcript = request_body.get('transcript')
+        name = request_body.get('name', 'Concerned Citizen')
+        mp_name = request_body.get("mp_name", "")
+        postcode = request_body.get("postcode", "")
+        if not transcript or not name:
             return Response(
-                body={"error": "No transcript provided"},
+                body={"error": "Name and transcript required"},
                 status_code=400
             )
         logging.info(f"Got transcript: length {len(transcript)}")
-        message_content = prompt.replace("{{TRANSCRIPT}}", transcript)
+        
+        params = { "TRANSCRIPT": transcript, "NAME": name, "MP_NAME": mp_name, "POSTCODE": postcode}
+        message_content = template.render(**params)
+
         response = anthropic_client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=8192,

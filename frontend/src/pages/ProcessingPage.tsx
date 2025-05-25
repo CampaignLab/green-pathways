@@ -38,6 +38,19 @@ const ProcessingPage: React.FC = () => {
     []
   );
 
+  const findEmail = useCallback(async (postcode: string | undefined) => {
+    if (!postcode) {
+      return undefined;
+    }
+    const response = await fetch(`${backendUrl}/email?postcode=${encodeURIComponent(postcode ?? '')}`, {
+      method: "GET",
+    });
+    if (!response.ok) {
+      throw new Error(`Email lookup failed: ${response.statusText}`);
+    }
+    return response.text();
+  }, [])
+
   const writeSummary = useCallback(async (transcript: string, path: string) => {
     const response = await fetch(`${backendUrl}/${path}`, {
       method: "POST",
@@ -75,6 +88,8 @@ const ProcessingPage: React.FC = () => {
     // Parse the stored submission and add the recording back
     const parsedSubmission: AudioSubmission = JSON.parse(storedSubmission);
     parsedSubmission.recording = recordingBlob;
+    parsedSubmission.name = sessionStorage.getItem("user_name") ?? undefined;
+    parsedSubmission.postcode = sessionStorage.getItem("user_postcode") ?? undefined;
     setSubmission(parsedSubmission);
 
     // Start the processing pipeline
@@ -86,11 +101,12 @@ const ProcessingPage: React.FC = () => {
       // Step 1: Transcribe audio
       setCurrentStep("transcribing");
       setProgress(10);
-      const transcript = await transcribeAudio(
+      const [transcript, emailAddress] = await Promise.all([transcribeAudio(
         sub.recording as Blob,
         sub.contentType
-      );
+      ), findEmail(sub.postcode)]);
       sub.transcript = transcript;
+      sub.mpEmailAddress = emailAddress;
       updateSubmission(sub);
       setProgress(30);
 
@@ -100,7 +116,6 @@ const ProcessingPage: React.FC = () => {
         writeSummary(transcript, "greenpaper"),
         writeSummary(transcript, "mpemail"),
       ]);
-      sub.emotionalAnalysis = greenpaper.split("\n")[0];
       sub.greenpaper = greenpaper.split("\n").slice(1).join("\n");
       sub.email = mpemail;
       updateSubmission(sub);
