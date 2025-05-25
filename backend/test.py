@@ -10,6 +10,12 @@ load_dotenv()
 BASE_URL=os.getenv("REMOTE_URL") if len(sys.argv) > 2 and sys.argv[2] == "remote" else "http://127.0.0.1:8000"
 
 def test_pipeline(filename):
+    response = requests.get(f'{BASE_URL}/email?postcode=CR0%207DJ')
+    if response.status_code != 200:
+        print(f"Email failed: {response.text}")
+        return
+    print("Email: ", response.text, "\n---\n")
+
     # 1. First, transcribe the audio
     with open(filename, "rb") as audio_file:
         data = audio_file.read()

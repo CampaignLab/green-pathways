@@ -38,7 +38,7 @@
 
 13. How can we support and ensure employers, including Small and Medium Sized Enterprises, to know what workplace adjustments they can make to help employees with a disability or health condition?
 
-14. What should DWP directly fund for both employers and individuals to maximise the impact of a future Access to Work and reach as many people as possible?
+14. What should DWP directly fund for both employers and individuals to maximise the impact of a future Access to Work and reach as many people as possible?
 
 15. What do you think the future role and design of Access to Work should be?
 

@@ -5,7 +5,9 @@ import os
 from openai import OpenAI
 from chalicelib.prompt import GREENPAPER_PROMPT, MP_PROMPT
 import uuid
-import logging 
+import logging
+import requests
+import csv
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,6 +26,82 @@ openai_client = OpenAI()
 anthropic_client = anthropic.Anthropic()
 os.makedirs("/tmp/audio", exist_ok=True)
 SUPPORTED_CONTENT_TYPES = ["audio/mp4", "audio/mpeg", "audio/wav", "audio/ogg", "audio/webm", "application/octet-stream"]
+
+# Load MP data at application startup and create a lookup dictionary
+mp_dict = {}
+with open('chalicelib/mpemails.csv', 'r') as csvfile:
+    reader = csv.DictReader(csvfile)
+    # Print header names for debugging
+    field_names = reader.fieldnames
+    logger.info(f"CSV columns: {field_names}")
+
+    for row in reader:
+        # Print a sample row for debugging
+        if len(mp_dict) == 0:
+            logger.info(f"Sample row: {row}")
+
+        constituency = row.get('Constituency', '').strip()
+        email = row.get('Email', '').strip()
+
+        if constituency and email:
+            mp_dict[constituency] = email
+
+logger.info(f"Loaded {len(mp_dict)} MP records")
+
+@app.route("/email", methods=["GET"], cors=True)
+def email():
+    try:
+        # Get postcode from query parameter
+        postcode = app.current_request.query_params.get('postcode')
+        if not postcode:
+            return Response(
+                body={"error": "No postcode provided"},
+                status_code=400,
+                headers={"Content-Type": "application/json"}
+            )
+        
+        # Clean the postcode (remove spaces and convert to uppercase)
+        postcode = postcode.strip().upper().replace(" ", "")
+        
+        # Get parliamentary constituency from postcodes.io
+        response = requests.get(f"https://api.postcodes.io/postcodes/{postcode}")
+        if response.status_code != 200:
+            return Response(
+                body={"error": f"Error fetching constituency data: {response.json().get('error', 'Unknown error')}"},
+                status_code=response.status_code,
+                headers={"Content-Type": "application/json"}
+            )
+        
+        data = response.json()
+        constituency = data.get('result', {}).get('parliamentary_constituency')
+        
+        if not constituency:
+            return Response(
+                body={"error": "Could not determine parliamentary constituency for this postcode"},
+                status_code=404,
+                headers={"Content-Type": "application/json"}
+            )
+        
+        constituency = constituency.strip()
+        mp_email = mp_dict.get(constituency)
+        
+        if not mp_email:
+            return Response(
+                body={"error": f"No MP email found for constituency: {constituency}"},
+                status_code=404,
+                headers={"Content-Type": "application/json"}
+            )
+        
+        return mp_email
+        
+    except Exception as e:
+        logging.error(e)
+        return Response(
+            body={"error": str(e)},
+            status_code=500,
+            headers={"Content-Type": "application/json"}
+        )
+    
 
 @app.route("/transcribe", methods=["POST"], cors=True, content_types=SUPPORTED_CONTENT_TYPES)
 def transcribe():
@@ -89,7 +167,7 @@ def apply_prompt_to_transcript(prompt):
         logging.info(f"Got transcript: length {len(transcript)}")
         message_content = prompt.replace("{{TRANSCRIPT}}", transcript)
         response = anthropic_client.messages.create(
-            model="claude-3-7-sonnet-20250219",
+            model="claude-sonnet-4-20250514",
             max_tokens=8192,
             temperature=0.6,
             messages=[
