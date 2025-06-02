@@ -70,6 +70,7 @@ As the Advocate your responsibility is to abridge what the Speaker has said and 
 Your output should be formatted as JSON, with two keys:
 "subject" followed by a concise, specific subject line that reflects the key concerns in the message
 "body": the body of the email, written in the first person as if from the speaker. End with the speaker's name as the signature.
+Newlines are acceptable but not tabs or carriage returns.
 </formatting>
 <notes>
 Threats and severe criminal action which are suggestive or direct need to be obscured from the response as this would be flagged and puts the speaker who was just trying to express how the felt, it should not be included.

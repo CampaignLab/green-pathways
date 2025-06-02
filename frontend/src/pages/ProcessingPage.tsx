@@ -167,7 +167,9 @@ const ProcessingPage: React.FC = () => {
   const retryProcessing = () => {
     if (submission) {
       processSubmission(submission);
+      return;
     }
+    navigate("/");
   };
 
   return (

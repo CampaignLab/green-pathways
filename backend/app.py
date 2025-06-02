@@ -167,8 +167,8 @@ def extract_json_from_response(response_text):
     if json_match:
         try:
             return json.loads(json_match.group(1))
-        except json.JSONDecodeError as e:
-            app.log.info(f"Failed to parse JSON from code block: {e}")
+        except json.JSONDecodeError:
+            pass
 
     # If no code blocks, try to find JSON directly
     json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
@@ -177,20 +177,20 @@ def extract_json_from_response(response_text):
         try:
             return json.loads(json_text)
         except json.JSONDecodeError as e:
-            # Debug logging
-            app.log.error(f"JSON parse error: {e}")
-            app.log.error(f"JSON text length: {len(json_text)}")
-            app.log.error(f"First 100 chars: {repr(json_text[:100])}")
-            app.log.error(f"Last 100 chars: {repr(json_text[-100:])}")
-            # Check for common issues
-            app.log.error(f"Contains null bytes: {'\\x00' in json_text}")
-            raise e
+            # Clean tabs and carriage returns as instructed in prompt
+            cleaned_json = json_text.replace('\t', ' ').replace('\r', '')
+            try:
+                return json.loads(cleaned_json)
+            except json.JSONDecodeError:
+                app.log.error(f"JSON parse failed even after cleaning: {e}")
+                app.log.error(f"Response text: {repr(response_text)}")
+                raise e
 
     # If all else fails, try parsing the whole thing
     try:
         return json.loads(response_text)
     except json.JSONDecodeError as e:
-        app.log.error(f"Could not extract JSON from response. Full response: {repr(response_text)}")
+        app.log.error(f"Could not extract JSON from response: {repr(response_text)}")
         raise e
 
 def apply_prompt_to_transcript(template):
