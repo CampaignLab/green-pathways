@@ -39,7 +39,7 @@ const ProcessingPage: React.FC = () => {
   );
 
   const findEmail = useCallback(async (postcode: string | undefined) => {
-    if (!postcode) {
+    if (!postcode  || !postcode.trim()) {
       return undefined;
     }
     const response = await fetch(`${backendUrl}/email?postcode=${encodeURIComponent(postcode ?? '')}`, {
@@ -111,6 +111,7 @@ const ProcessingPage: React.FC = () => {
         sub.recording as Blob,
         sub.contentType
       ), findEmail(sub.postcode)]);
+      console.log("got transcript");
       sub.transcript = transcript;
       if (sub.postcode && sub.postcode.trim()) {
         sub.mpName = mpData.name;

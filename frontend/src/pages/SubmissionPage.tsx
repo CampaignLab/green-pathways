@@ -38,6 +38,7 @@ const SubmissionPage: React.FC = () => {
       setSubmission(parsedSubmission);
     } catch (err) {
       console.error("Error loading submission:", err);
+      console.log("Stored submission:", storedSubmission);
       setError("Error loading your submission. Please try recording again.");
     }
   }, [submissionId]);
