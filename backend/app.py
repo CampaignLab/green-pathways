@@ -160,19 +160,38 @@ def greenpaper():
 def mpemail():
     return apply_prompt_to_transcript(MPEMAIL_TEMPLATE)
 
+
 def extract_json_from_response(response_text):
     # Try to find JSON in markdown code blocks first
     json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
     if json_match:
-        return json.loads(json_match.group(1))
+        try:
+            return json.loads(json_match.group(1))
+        except json.JSONDecodeError as e:
+            app.log.info(f"Failed to parse JSON from code block: {e}")
 
     # If no code blocks, try to find JSON directly
     json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
     if json_match:
-        return json.loads(json_match.group(0))
+        json_text = json_match.group(0)
+        try:
+            return json.loads(json_text)
+        except json.JSONDecodeError as e:
+            # Debug logging
+            app.log.error(f"JSON parse error: {e}")
+            app.log.error(f"JSON text length: {len(json_text)}")
+            app.log.error(f"First 100 chars: {repr(json_text[:100])}")
+            app.log.error(f"Last 100 chars: {repr(json_text[-100:])}")
+            # Check for common issues
+            app.log.error(f"Contains null bytes: {'\\x00' in json_text}")
+            raise e
 
     # If all else fails, try parsing the whole thing
-    return json.loads(response_text)
+    try:
+        return json.loads(response_text)
+    except json.JSONDecodeError as e:
+        app.log.error(f"Could not extract JSON from response. Full response: {repr(response_text)}")
+        raise e
 
 def apply_prompt_to_transcript(template):
     template_id = str(uuid.uuid4())
