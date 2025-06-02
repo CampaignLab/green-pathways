@@ -161,6 +161,13 @@ def mpemail():
     return apply_prompt_to_transcript(MPEMAIL_TEMPLATE)
 
 
+# Escape newlines only inside quoted strings
+def escape_newlines_in_strings(text):
+    def replacer(match):
+        return '"' + match.group(1).replace('\n', '\\n') + '"'
+
+    return re.sub(r'"(.*?)(?<!\\)"', replacer, text, flags=re.DOTALL)
+
 def extract_json_from_response(response_text):
     # Try to find JSON in markdown code blocks first
     json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
@@ -177,15 +184,17 @@ def extract_json_from_response(response_text):
         try:
             return json.loads(json_text)
         except json.JSONDecodeError as e:
-            # Debug the exact characters around position 100
-            error_pos = e.pos if hasattr(e, 'pos') else 112
-            app.log.error(f"Character at error position: {repr(json_text[error_pos - 5:error_pos + 5])}")
-            app.log.error(f"Hex dump around error: {[hex(ord(c)) for c in json_text[error_pos - 5:error_pos + 5]]}")
+            app.log.info(f"JSONDecodeError: {e.msg} pos {e.pos} line {e.lineno} col {e.colno}")
+            if hasattr(e, 'pos'):
+                app.log.error(f"Character at error position: {repr(json_text[e.pos - 5:e.pos + 5])}")
+                app.log.error(f"Hex dump around error: {[hex(ord(c)) for c in json_text[e.pos - 5:e.pos + 5]]}")
+            else:
+                app.log.error(f"No character position information available")
 
             # More aggressive cleaning
             cleaned_json = json_text
-            # Clean tabs and carriage returns
-            cleaned_json = cleaned_json.replace('\t', ' ').replace('\r', '')
+            # clean newlines
+            cleaned_json = escape_newlines_in_strings(cleaned_json)
             # Remove any other control characters
             cleaned_json = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', cleaned_json)
 
