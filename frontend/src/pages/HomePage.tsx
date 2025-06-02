@@ -22,6 +22,14 @@ const HomePage: React.FC = () => {
   }, [name, postcode]);
 
   const uploadToBackend = async (audioBlob: Blob, contentType: string) => {
+    // Validate name before proceeding
+    if (!name.trim()) {
+      setError('Please enter your name before submitting.');
+      return;
+    }
+
+    setError(null);
+
     const submissionId = uuidv4();
 
     const submission: AudioSubmission = {
@@ -33,24 +41,19 @@ const HomePage: React.FC = () => {
     
     sessionStorage.setItem(`submission_${submissionId}`, JSON.stringify(submission));
     (window as any).submissionBlob = audioBlob;
-    
-    return submissionId;
+
+    navigate(`/processing/${submissionId}`);
   };
   
-  const handleRecordingComplete = async (recording: Blob) => {
-    setError(null);
-    
-    try {
-      // Upload the recording to the backend
-      const submissionId = await uploadToBackend(recording, recording.type || "audio/webm");
-      
-      // Navigate to the processing page
-      navigate(`/processing/${submissionId}`);
-    } catch (error) {
-      console.error('Error processing recording:', error);
-      setError('Failed to upload recording. Please try again.');
-    }
-  };
+const handleRecordingComplete = async (recording: Blob) => {
+  try {
+    // Upload the recording to the backend
+    await uploadToBackend(recording, recording.type || "audio/webm");
+  } catch (error) {
+    console.error('Error processing recording:', error);
+    setError('Failed to upload recording. Please try again.');
+  }
+};
 
 const extensionToContentType = (extension: string) => {
   switch (extension.toLowerCase()) {
@@ -66,18 +69,12 @@ const extensionToContentType = (extension: string) => {
 };
   
   const handleFileUpload = async (file: File) => {
-    setError(null);
-
     try {
       const pieces = file.name.split(".");
       const extension = pieces[pieces.length - 1];
       const contentType = extensionToContentType(extension);
       
-      // Upload the file directly
-      const submissionId = await uploadToBackend(file, contentType);
-      
-      // Navigate to the processing page
-      navigate(`/processing/${submissionId}`);
+      await uploadToBackend(file, contentType);
     } catch (error) {
       console.error('Error processing file upload:', error);
       setError('Failed to upload file. Please try again.');
@@ -116,7 +113,7 @@ const extensionToContentType = (extension: string) => {
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-1">
               <label htmlFor="name" className="block text-sm font-medium text-slate-700">
-                Your Name
+                Your Name (required)
               </label>
               <input
                 type="text"
@@ -129,8 +126,9 @@ const extensionToContentType = (extension: string) => {
 
             <div className="grid grid-cols-1 gap-1">
               <label htmlFor="postcode" className="block text-sm font-medium text-slate-700">
-                Your Postcode
+                Your Postcode (optional)
               </label>
+              <div className="text-xs">Postcode is needed to send an email to your MP.</div>
               <input
                 type="text"
                 id="postcode"
@@ -143,6 +141,7 @@ const extensionToContentType = (extension: string) => {
           </div>
         </CardContent>
       </Card>
+      { name.trim().length > 0 && (
       <Card>
         <CardHeader>
           <CardTitle>How would you like to contribute?</CardTitle>
@@ -186,6 +185,17 @@ const extensionToContentType = (extension: string) => {
           )}
         </CardContent>
       </Card>
+
+      )}
+
+      { error && (
+          <Card className="border-red-500">
+            <CardHeader>
+              <CardTitle className="text-red-500">Error</CardTitle>
+              <CardDescription>{error}</CardDescription>
+            </CardHeader>
+          </Card>
+      )}
 
       {/* Tips Section */}
       <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex gap-4">

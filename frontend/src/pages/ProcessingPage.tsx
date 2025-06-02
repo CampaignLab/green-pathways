@@ -60,7 +60,7 @@ const ProcessingPage: React.FC = () => {
       },
     });
     if (!response.ok) {
-      throw new Error(`Transcription failed: ${response.statusText}`);
+      throw new Error(`Text generation failed: ${response.statusText}`);
     }
     const data = await response.json();
     return data;
@@ -88,7 +88,13 @@ const ProcessingPage: React.FC = () => {
     // Parse the stored submission and add the recording back
     const parsedSubmission: AudioSubmission = JSON.parse(storedSubmission);
     parsedSubmission.recording = recordingBlob;
-    parsedSubmission.name = sessionStorage.getItem("user_name") ?? undefined;
+    const userName = sessionStorage.getItem("user_name");
+    if (!userName) {
+      setError("User name not found. Please try recording again.");
+      setCurrentStep("error");
+      return;
+    }
+    parsedSubmission.name = userName;
     parsedSubmission.postcode = sessionStorage.getItem("user_postcode") ?? undefined;
     setSubmission(parsedSubmission);
 
@@ -106,8 +112,10 @@ const ProcessingPage: React.FC = () => {
         sub.contentType
       ), findEmail(sub.postcode)]);
       sub.transcript = transcript;
-      sub.mpName = mpData.name;
-      sub.mpEmailAddress = mpData.email;
+      if (sub.postcode && sub.postcode.trim()) {
+        sub.mpName = mpData.name;
+        sub.mpEmailAddress = mpData.email;
+      }
       updateSubmission(sub);
       setProgress(30);
 
@@ -134,10 +142,9 @@ const ProcessingPage: React.FC = () => {
         navigate(`/submission/${submissionId}`);
       }, 1500);
     } catch (err) {
-      console.error("Error processing submission:", err);
-      setError(
-        "An error occurred while processing your submission. Please try again."
-      );
+      const message =`An error occurred while processing your submission. Please try again. (Information for developers: ${err})`;
+      console.error(err);
+      setError(message);
       setCurrentStep("error");
     }
   };
