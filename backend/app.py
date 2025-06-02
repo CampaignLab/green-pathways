@@ -177,13 +177,23 @@ def extract_json_from_response(response_text):
         try:
             return json.loads(json_text)
         except json.JSONDecodeError as e:
-            # Clean tabs and carriage returns as instructed in prompt
-            cleaned_json = json_text.replace('\t', ' ').replace('\r', '')
+            # Debug the exact characters around position 100
+            error_pos = e.pos if hasattr(e, 'pos') else 112
+            app.log.error(f"Character at error position: {repr(json_text[error_pos - 5:error_pos + 5])}")
+            app.log.error(f"Hex dump around error: {[hex(ord(c)) for c in json_text[error_pos - 5:error_pos + 5]]}")
+
+            # More aggressive cleaning
+            cleaned_json = json_text
+            # Clean tabs and carriage returns
+            cleaned_json = cleaned_json.replace('\t', ' ').replace('\r', '')
+            # Remove any other control characters
+            cleaned_json = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', cleaned_json)
+
             try:
                 return json.loads(cleaned_json)
-            except json.JSONDecodeError:
-                app.log.error(f"JSON parse failed even after cleaning: {e}")
-                app.log.error(f"Response text: {repr(response_text)}")
+            except json.JSONDecodeError as e2:
+                app.log.error(f"Still failing after aggressive cleaning: {e2}")
+                app.log.error(f"Final cleaned version: {repr(cleaned_json[:200])}")
                 raise e
 
     # If all else fails, try parsing the whole thing
@@ -192,6 +202,7 @@ def extract_json_from_response(response_text):
     except json.JSONDecodeError as e:
         app.log.error(f"Could not extract JSON from response: {repr(response_text)}")
         raise e
+
 
 def apply_prompt_to_transcript(template):
     template_id = str(uuid.uuid4())
