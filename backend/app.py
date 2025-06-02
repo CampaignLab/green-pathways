@@ -12,9 +12,6 @@ from jinja2 import Template
 import json
 import re
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 load_dotenv()
 
 AWS_REGION = os.getenv("AWS_REGION", "eu-west-2")
@@ -24,6 +21,7 @@ if not os.getenv("ANTHROPIC_API_KEY"):
     raise Exception("ANTHROPIC_API_KEY not set in environment")
 
 app = Chalice(app_name="green-pathways-backend")
+app.log.setLevel(logging.INFO)
 
 openai_client = OpenAI()
 anthropic_client = anthropic.Anthropic()
@@ -42,7 +40,7 @@ with open('chalicelib/mpemails.csv', 'r') as csvfile:
         if constituency and email:
             mp_dict[constituency] = { "email": email, "name": name }
 
-logger.info(f"Loaded {len(mp_dict)} MP records")
+app.log.info(f"Loaded {len(mp_dict)} MP records")
 
 @app.route("/email", methods=["GET"], cors=True)
 def email():
@@ -99,7 +97,7 @@ def email():
         )
         
     except Exception as e:
-        logging.error(e)
+        app.log.error(e)
         return Response(
             body={"error": str(e)},
             status_code=500,
@@ -116,7 +114,7 @@ def transcribe():
     temp_file_path = f"/tmp/audio/{submission_id}.{extension}"
 
     try:
-        logging.info(f"Got data: {len(audio_file)/1024} kb")
+        app.log.info(f"{submission_id}: Got data - {len(audio_file)/1024} kb")
 
         # Write audio data to temporary file
         with open(temp_file_path, "wb") as f:
@@ -124,21 +122,21 @@ def transcribe():
         
         # Process with Whisper API
         with open(temp_file_path, "rb") as audio_temp:
-            logging.info("Contacting OpenAI")
+            app.log.info(f"{submission_id}: Contacting OpenAI")
             try:
                 transcription = openai_client.audio.transcriptions.create(
                     model="gpt-4o-transcribe", 
                     file=audio_temp
                 )
             except Exception as api_error:
-                logging.info(f"OpenAI error: {str(api_error)}")
+                app.log.info(f"{submission_id}: OpenAI error - {str(api_error)}")
                 raise api_error
-        logging.info(f"Transcript")
+        app.log.info(f"{submission_id}: Transcript received")
         transcription_text = transcription.text.strip()
 
         return transcription_text
     except Exception as e:
-        logging.error(e)
+        app.log.error(e)
         return Response(
             body={"error": str(e)},
             status_code=500
@@ -149,7 +147,7 @@ def transcribe():
             if os.path.exists(temp_file_path):
                 os.remove(temp_file_path)
         except Exception as e:
-            logging.info(f"Warning: Failed to clean up temporary file {temp_file_path}: {str(e)}")
+            app.log.info(f"{submission_id}: Warning: Failed to clean up temporary file {temp_file_path}: {str(e)}")
 
 GREENPAPER_TEMPLATE = Template(GREENPAPER_PROMPT)
 MPEMAIL_TEMPLATE = Template(MP_PROMPT)
@@ -177,21 +175,24 @@ def extract_json_from_response(response_text):
     return json.loads(response_text)
 
 def apply_prompt_to_transcript(template):
+    template_id = str(uuid.uuid4())
     try:
         request_body = app.current_request.json_body
         transcript = request_body.get('transcript')
         name = request_body.get('name', 'Concerned Citizen')
         mp_name = request_body.get("mp_name", "")
         postcode = request_body.get("postcode", "")
-        if not transcript or not name:
+        if not transcript:
+            app.log.info(f"{template_id}: Transcript missing")
             return Response(
-                body={"error": "Name and transcript required"},
+                body={"error": "Transcript required"},
                 status_code=400
             )
-        logging.info(f"Got transcript: length {len(transcript)}")
-        
+        app.log.info(f"{template_id}: Got transcript length {len(transcript)}")
+
         params = { "TRANSCRIPT": transcript, "NAME": name, "MP_NAME": mp_name, "POSTCODE": postcode}
         message_content = template.render(**params)
+        app.log.info(f"{template_id}: Template applied")
 
         response = anthropic_client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -204,21 +205,21 @@ def apply_prompt_to_transcript(template):
                 },
             ]
         )
-
+        app.log.info(f"{template_id}: Got response from Claude")
         response_text = response.content[0].text.strip()
-
         try:
             json_data = extract_json_from_response(response_text)
+            app.log.info(f"{template_id}: Response from Claude OK")
             return Response(
                 body=json_data,
                 status_code=200,
                 headers={"Content-Type": "application/json"}
             )
         except json.JSONDecodeError:
-            logging.info(f"Text: {response_text}")
+            app.log.info(f"JSONDecodeError: {response_text}")
             return response_text
     except Exception as e:
-        logging.error(e)
+        app.log.error(f"{template_id}: Error: {str(e)}")
         return Response(
             status_code=500,
             body={"error": str(e)},
