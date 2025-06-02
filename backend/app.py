@@ -169,6 +169,8 @@ def escape_newlines_in_strings(text):
     return re.sub(r'"(.*?)(?<!\\)"', replacer, text, flags=re.DOTALL)
 
 def extract_json_from_response(response_text):
+    if response_text.startswith("I notice "):
+        raise Exception("Transcript was not usable")
     # Try to find JSON in markdown code blocks first
     json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
     if json_match:

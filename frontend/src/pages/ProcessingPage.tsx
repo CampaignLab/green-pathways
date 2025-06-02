@@ -28,11 +28,11 @@ const ProcessingPage: React.FC = () => {
           "Content-Type": contentType,
         },
       });
+      const data = await response.text();
 
       if (!response.ok) {
-        throw new Error(`Transcription failed: ${response.statusText}`);
+        throw new Error(`Transcription failed: ${data || response.statusText}`);
       }
-      const data = await response.text();
       return data;
     },
     []
@@ -60,7 +60,8 @@ const ProcessingPage: React.FC = () => {
       },
     });
     if (!response.ok) {
-      throw new Error(`Text generation failed: ${response.statusText}`);
+      const text = await response.text();
+      throw new Error(`Text generation failed: ${text || response.statusText}`);
     }
     const data = await response.json();
     return data;
@@ -73,7 +74,6 @@ const ProcessingPage: React.FC = () => {
     );
     if (!storedSubmission) {
       setError("Submission not found. Please try recording again.");
-      setCurrentStep("error");
       return;
     }
 
@@ -81,7 +81,6 @@ const ProcessingPage: React.FC = () => {
     const recordingBlob = (window as any).submissionBlob;
     if (!recordingBlob) {
       setError("Recording not found. Please try recording again.");
-      setCurrentStep("error");
       return;
     }
 
@@ -91,7 +90,6 @@ const ProcessingPage: React.FC = () => {
     const userName = sessionStorage.getItem("user_name");
     if (!userName) {
       setError("User name not found. Please try recording again.");
-      setCurrentStep("error");
       return;
     }
     parsedSubmission.name = userName;
@@ -146,7 +144,6 @@ const ProcessingPage: React.FC = () => {
       const message =`An error occurred while processing your submission. Please try again. (Information for developers: ${err})`;
       console.error(err);
       setError(message);
-      setCurrentStep("error");
     }
   };
 
@@ -166,6 +163,7 @@ const ProcessingPage: React.FC = () => {
 
   const retryProcessing = () => {
     if (submission) {
+      setError(null);
       processSubmission(submission);
       return;
     }
@@ -200,6 +198,7 @@ const ProcessingPage: React.FC = () => {
               <ProcessingStepItem
                 title="Transcribing your audio"
                 status={getStepStatus("transcribing", currentStep)}
+                error={error}
                 icon={<Loader2 className="h-6 w-6 animate-spin" />}
                 completedIcon={
                   <CheckCircle className="h-6 w-6 text-green-500" />
@@ -209,6 +208,7 @@ const ProcessingPage: React.FC = () => {
               <ProcessingStepItem
                 title="Preparing submissions"
                 status={getStepStatus("preparing", currentStep)}
+                error={error}
                 icon={<Loader2 className="h-6 w-6 animate-spin" />}
                 completedIcon={
                   <CheckCircle className="h-6 w-6 text-green-500" />
@@ -216,7 +216,7 @@ const ProcessingPage: React.FC = () => {
               />
             </div>
 
-            {currentStep === "error" && (
+            {!!error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-4">
                 <div className="flex">
                   <AlertTriangle className="h-6 w-6 text-red-500 mr-3" />
@@ -267,6 +267,7 @@ const ProcessingPage: React.FC = () => {
 interface ProcessingStepItemProps {
   title: string;
   status: "waiting" | "in-progress" | "completed";
+  error: string | null;
   icon: React.ReactNode;
   completedIcon: React.ReactNode;
 }
@@ -274,6 +275,7 @@ interface ProcessingStepItemProps {
 const ProcessingStepItem: React.FC<ProcessingStepItemProps> = ({
   title,
   status,
+  error,
   icon,
   completedIcon,
 }) => {
@@ -282,7 +284,7 @@ const ProcessingStepItem: React.FC<ProcessingStepItemProps> = ({
       <div className="mr-4">
         {status === "completed" ? (
           completedIcon
-        ) : status === "in-progress" ? (
+        ) : status === "in-progress" && !error ? (
           icon
         ) : (
           <div className="h-6 w-6 rounded-full border-2 border-slate-300"></div>
@@ -291,7 +293,7 @@ const ProcessingStepItem: React.FC<ProcessingStepItemProps> = ({
       <span
         className={`
         font-medium
-        ${status === "waiting" ? "text-slate-400" : ""}
+        ${status === "waiting" || !!error ? "text-slate-400" : ""}
         ${status === "in-progress" ? "text-blue-700" : ""}
         ${status === "completed" ? "text-slate-800" : ""}
       `}
