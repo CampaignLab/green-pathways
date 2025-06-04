@@ -28,12 +28,12 @@ const ProcessingPage: React.FC = () => {
           "Content-Type": contentType,
         },
       });
-      const data = await response.text();
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(`Transcription failed: ${data || response.statusText}`);
+        throw new Error(`Transcription failed: ${data.error || response.statusText}`);
       }
-      return data;
+      return data.transcript;
     },
     []
   );
@@ -45,10 +45,11 @@ const ProcessingPage: React.FC = () => {
     const response = await fetch(`${backendUrl}/email?postcode=${encodeURIComponent(postcode ?? '')}`, {
       method: "GET",
     });
+    const data = await response.json();
     if (!response.ok) {
-      throw new Error(`Email lookup failed: ${response.statusText}`);
+      throw new Error(`Email lookup failed: ${data.error}`);
     }
-    return response.json();
+    return data;
   }, [])
 
   const writeSummary = useCallback(async (body: string, path: string) => {
@@ -59,11 +60,10 @@ const ProcessingPage: React.FC = () => {
         "Content-Type": "application/json",
       },
     });
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Text generation failed: ${text || response.statusText}`);
-    }
     const data = await response.json();
+    if (!response.ok) {
+      throw new Error(`Text generation failed: ${data.error || response.statusText}`);
+    }
     return data;
   }, []);
 
@@ -141,6 +141,11 @@ const ProcessingPage: React.FC = () => {
         navigate(`/submission/${submissionId}`);
       }, 1500);
     } catch (err) {
+      if ((err instanceof Error) && err.message.indexOf("Transcript was not usable") > 0) {
+        setError("Your audio recording was not usable. Please try again.");
+        setSubmission(null); // Try again will now return to recording page
+        return;
+      }
       const message =`An error occurred while processing your submission. Please try again. (Information for developers: ${err})`;
       console.error(err);
       setError(message);

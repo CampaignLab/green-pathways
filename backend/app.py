@@ -42,17 +42,21 @@ with open('chalicelib/mpemails.csv', 'r') as csvfile:
 
 app.log.info(f"Loaded {len(mp_dict)} MP records")
 
+def error_response(error_message, status_code=500):
+    return Response(
+        body={"error": error_message},
+        status_code=status_code,
+        headers={"Content-Type": "application/json"}
+    )
+
 @app.route("/email", methods=["GET"], cors=True)
 def email():
     try:
         # Get postcode from query parameter
         postcode = app.current_request.query_params.get('postcode')
         if not postcode:
-            return Response(
-                body={"error": "No postcode provided"},
-                status_code=400,
-                headers={"Content-Type": "application/json"}
-            )
+            return error_response("No postcode provided",
+                status_code=400)
         
         # Clean the postcode (remove spaces and convert to uppercase)
         postcode = postcode.strip().upper().replace(" ", "")
@@ -60,32 +64,25 @@ def email():
         # Get parliamentary constituency from postcodes.io
         response = requests.get(f"https://api.postcodes.io/postcodes/{postcode}")
         if response.status_code != 200:
-            return Response(
-                body={"error": f"Error fetching constituency data: {response.json().get('error', 'Unknown error')}"},
+            return error_response(
+                error_message=f"Error fetching constituency data: {response.json().get('error', 'Unknown error')}",
                 status_code=response.status_code,
-                headers={"Content-Type": "application/json"}
             )
         
         data = response.json()
         constituency = data.get('result', {}).get('parliamentary_constituency')
         
         if not constituency:
-            return Response(
-                body={"error": "Could not determine parliamentary constituency for this postcode"},
-                status_code=404,
-                headers={"Content-Type": "application/json"}
-            )
+            return error_response("Could not determine parliamentary constituency for this postcode",
+                status_code=404)
         
         constituency = constituency.strip()
         mp_email = mp_dict.get(constituency).get("email")
         mp_name = mp_dict.get(constituency).get("name")
         
         if not mp_email:
-            return Response(
-                body={"error": f"No MP email found for constituency: {constituency}"},
-                status_code=404,
-                headers={"Content-Type": "application/json"}
-            )
+            return error_response(f"No MP email found for constituency: {constituency}",
+                status_code=404)
         
         return Response(
             body={
@@ -98,11 +95,7 @@ def email():
         
     except Exception as e:
         app.log.error(e)
-        return Response(
-            body={"error": str(e)},
-            status_code=500,
-            headers={"Content-Type": "application/json"}
-        )
+        return error_response(str(e))
     
 
 @app.route("/transcribe", methods=["POST"], cors=True, content_types=SUPPORTED_CONTENT_TYPES)
@@ -134,11 +127,15 @@ def transcribe():
         app.log.info(f"{submission_id}: Transcript received")
         transcription_text = transcription.text.strip()
 
-        return transcription_text
+        return Response(
+            body={"transcript": transcription_text},
+            status_code=200,
+            headers={"Content-Type": "application/json"}
+        )
+
     except Exception as e:
         app.log.error(e)
-        return Response(
-            body={"error": str(e)},
+        return error_response(str(e),
             status_code=500
         )
     finally:
@@ -169,50 +166,33 @@ def escape_newlines_in_strings(text):
     return re.sub(r'"(.*?)(?<!\\)"', replacer, text, flags=re.DOTALL)
 
 def extract_json_from_response(response_text):
-    if response_text.startswith("I notice "):
-        raise Exception("Transcript was not usable")
-    # Try to find JSON in markdown code blocks first
-    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
-    if json_match:
-        try:
-            return json.loads(json_match.group(1))
-        except json.JSONDecodeError:
-            pass
-
-    # If no code blocks, try to find JSON directly
     json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-    if json_match:
-        json_text = json_match.group(0)
-        try:
-            return json.loads(json_text)
-        except json.JSONDecodeError as e:
-            app.log.info(f"JSONDecodeError: {e.msg} pos {e.pos} line {e.lineno} col {e.colno}")
-            if hasattr(e, 'pos'):
-                app.log.error(f"Character at error position: {repr(json_text[e.pos - 5:e.pos + 5])}")
-                app.log.error(f"Hex dump around error: {[hex(ord(c)) for c in json_text[e.pos - 5:e.pos + 5]]}")
-            else:
-                app.log.error(f"No character position information available")
-
-            # More aggressive cleaning
-            cleaned_json = json_text
-            # clean newlines
-            cleaned_json = escape_newlines_in_strings(cleaned_json)
-            # Remove any other control characters
-            cleaned_json = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', cleaned_json)
-
-            try:
-                return json.loads(cleaned_json)
-            except json.JSONDecodeError as e2:
-                app.log.error(f"Still failing after aggressive cleaning: {e2}")
-                app.log.error(f"Final cleaned version: {repr(cleaned_json[:200])}")
-                raise e
-
-    # If all else fails, try parsing the whole thing
+    if not json_match:
+        raise Exception("Transcript was not usable")
+    json_text = json_match.group(0)
     try:
-        return json.loads(response_text)
+        return json.loads(json_text)
     except json.JSONDecodeError as e:
-        app.log.error(f"Could not extract JSON from response: {repr(response_text)}")
-        raise e
+        app.log.info(f"JSONDecodeError: {e.msg} pos {e.pos} line {e.lineno} col {e.colno}")
+        if hasattr(e, 'pos'):
+            app.log.error(f"Character at error position: {repr(json_text[e.pos - 5:e.pos + 5])}")
+            app.log.error(f"Hex dump around error: {[hex(ord(c)) for c in json_text[e.pos - 5:e.pos + 5]]}")
+        else:
+            app.log.error(f"No character position information available")
+
+        # More aggressive cleaning
+        cleaned_json = json_text
+        # clean newlines
+        cleaned_json = escape_newlines_in_strings(cleaned_json)
+        # Remove any other control characters
+        cleaned_json = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', cleaned_json)
+
+        try:
+            return json.loads(cleaned_json)
+        except json.JSONDecodeError as e2:
+            app.log.error(f"Still failing after aggressive cleaning: {e2}")
+            app.log.error(f"Final cleaned version: {repr(cleaned_json[:200])}")
+            raise e
 
 
 def apply_prompt_to_transcript(template):
@@ -261,9 +241,5 @@ def apply_prompt_to_transcript(template):
             return response_text
     except Exception as e:
         app.log.error(f"{template_id}: Error: {str(e)}")
-        return Response(
-            status_code=500,
-            body={"error": str(e)},
-            headers={"Content-Type": "application/json"}
-        )
+        return error_response(str(e))
 
