@@ -130,7 +130,7 @@ const AboutPage: React.FC = () => {
             </li>
             <li className="flex items-start">
               <span className="font-medium mr-2">3.</span>
-              <p>Word count metrics (input and output) to monitor AI performance, this is not the words you submitted, just a toold that counts how many.</p>
+              <p>Word count metrics (input and output) to monitor AI performance. Not the words you submitted, just a tool to count how many.</p>
             </li>
           </ul>
           <p className="text-slate-600 mt-4">

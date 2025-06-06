@@ -141,10 +141,17 @@ const ProcessingPage: React.FC = () => {
         navigate(`/submission/${submissionId}`);
       }, 1500);
     } catch (err) {
-      if ((err instanceof Error) && err.message.indexOf("Transcript was not usable") > 0) {
-        setError("Your audio recording was not usable. Please try again.");
-        setSubmission(null); // Try again will now return to recording page
-        return;
+      if (err instanceof Error) {
+        if (err.message.indexOf("Transcript was not usable") > 0) {
+          setError("Your audio recording was not usable. Please try again.");
+          setSubmission(null); // Try again will now return to recording page
+          return;
+        }
+        if (err.message.indexOf("Invalid postcode") > 0) {
+          setError("Invalid postcode. Please try again.");
+          setSubmission(null);
+          return;
+        }
       }
       const message =`An error occurred while processing your submission. Please try again. (Information for developers: ${err})`;
       console.error(err);

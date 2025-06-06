@@ -65,7 +65,7 @@ def email():
         response = requests.get(f"https://api.postcodes.io/postcodes/{postcode}")
         if response.status_code != 200:
             return error_response(
-                error_message=f"Error fetching constituency data: {response.json().get('error', 'Unknown error')}",
+                error_message=response.json().get('error', 'Error fetching constituency data'),
                 status_code=response.status_code,
             )
         
