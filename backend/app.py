@@ -211,7 +211,7 @@ def apply_prompt_to_transcript(template):
             )
         app.log.info(f"{template_id}: Got transcript length {len(transcript)}")
 
-        params = { "TRANSCRIPT": transcript, "NAME": name, "MP_NAME": mp_name, "POSTCODE": postcode}
+        params = { "TRANSCRIPT": transcript, "NAME": "%%NAME%%", "MP_NAME": mp_name, "POSTCODE": "%%POSTCODE%%"}
         message_content = template.render(**params)
         app.log.info(f"{template_id}: Template applied")
 
@@ -228,6 +228,7 @@ def apply_prompt_to_transcript(template):
         )
         app.log.info(f"{template_id}: Got response from Claude")
         response_text = response.content[0].text.strip()
+        response_text = response_text.replace("%%NAME%%", name).replace("%%POSTCODE%%", postcode)
         try:
             json_data = extract_json_from_response(response_text)
             app.log.info(f"{template_id}: Response from Claude OK")
