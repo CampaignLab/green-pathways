@@ -4,11 +4,20 @@ import Button from '../ui/Button';
 import AudioVisualizer from './AudioVisualizer';
 import { AudioRecorderProps } from '../../types';
 
+// 1️⃣  Utility: pick the first MIME type the browser can actually write.
+const pickMimeType = () => {
+  const candidates = [
+    'audio/webm',  // Chrome / Edge
+    'audio/mp4',               // Safari iOS / macOS
+    'audio/mpeg'               // very old fallback
+  ];
+  return candidates.find(MediaRecorder.isTypeSupported) || '';
+};
+
 const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplete }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [hasRecording, setHasRecording] = useState(false);
@@ -18,7 +27,9 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplete }) =>
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
-  
+  const mimeTypeRef = useRef<string>("");
+
+
   useEffect(() => {
     const getPermission = async () => {
       try {
@@ -71,7 +82,6 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplete }) =>
       }
       
       // Reset any previous recordings
-      setAudioChunks([]);
       setRecordingBlob(null);
       if (audioURL) {
         URL.revokeObjectURL(audioURL);
@@ -85,9 +95,13 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplete }) =>
       }
       
       // Create media recorder
-      const mediaRecorder = new MediaRecorder(streamRef.current);
+      const mimeType = pickMimeType();
+      mimeTypeRef.current = mimeType;
+      const mediaRecorder = mimeType
+          ? new MediaRecorder(streamRef.current!, { mimeType })
+          : new MediaRecorder(streamRef.current!);
       mediaRecorderRef.current = mediaRecorder;
-      
+
       const chunks: Blob[] = [];
       mediaRecorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
@@ -96,8 +110,9 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplete }) =>
       };
       
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        setAudioChunks(chunks);
+        const blob = new Blob(chunks, {              // use the real type
+          type: mimeTypeRef.current || chunks[0]?.type || ''
+        });
         setRecordingBlob(blob);
         setHasRecording(true);
         
@@ -152,7 +167,6 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplete }) =>
       URL.revokeObjectURL(audioURL);
     }
     
-    setAudioChunks([]);
     setRecordingBlob(null);
     setAudioURL(null);
     setHasRecording(false);
